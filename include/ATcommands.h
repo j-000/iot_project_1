@@ -1,0 +1,8 @@
+#define AT_RESET              "AT+RST"
+#define AT_SET_STATION_MODE   "AT+CWMODE=1"
+#define AT_CONNECT_TO_WIFI    "AT+CWJAP="
+#define AT_CHECK_STATUS       "AT+CIPSTATUS"
+#define AT_DISCONNECT_WIFI    "AT+CWQAP"
+#define AT_GET_IP             "AT+CIFSR"
+#define AT_FIRMWARE_INFO      "AT+GMR"
+#define AT_SET_BAUD_RATE_9600 "AT+UART_DEF=9600,8,1,0,0"
