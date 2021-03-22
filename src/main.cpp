@@ -17,8 +17,13 @@ String sendGetRequest(String url){
   HTTPClient http;
   WiFiClientSecure client;
   
-  client.connect("iot.joalex.dev", 443);
-  http.begin("iot.joalex.dev", 443, url, "70 d3 7f 7e 83 4d 7d e2 f9 9a 3e 8f 9a 97 8a a2 5c cf f7 ee");
+  client.connect("yourwebsite.com", 443);
+
+  // HTTPS
+  // http.begin("yourwebsite.com", 443, url, SSL_THUMBPRINT);
+
+  // HTTP
+  http.begin(url);
 
   int httpCode = http.GET();
 
