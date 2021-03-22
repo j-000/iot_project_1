@@ -1,72 +1,89 @@
-// Custom files
-#include <ATcommands.h>
-#include <UtilFunctions.h>
-#include <credentials.h>     // Contains SSID and PWD for wifi.
-
-// Libraries
-#include<Arduino.h>
-#include <SoftwareSerial.h>
-
-// TX and RX pins definitions
-#define TX_PIN 2
-#define RX_PIN 3
-
-// Global variables
-SoftwareSerial ESPSerial(TX_PIN, RX_PIN);
-String host = "\"http://joalex.dev\"";
-String port = "\"80\"";
-String protocol = "\"TCP\"";
-int oneMinute = 60000; 
-
-// Thermistor pin and resistor definition
-int thermistorPin = A0;
-float thermistorResistor = 100000;
+#include <Arduino.h>
+#include <ESP8266WiFi.h>
+#include <ESP8266HTTPClient.h>
+#include <DHT.h>
 
 
-void setup() {
-  // Start Serial and ESPSerial
-  Serial.begin(9600);
-  ESPSerial.begin(9600); 
-  // Reset ESP
-  espRunCommand(ESPSerial, AT_RESET, 1000);
-  // Set Station Mode
-  espRunCommand(ESPSerial, AT_SET_STATION_MODE, 1000);
-  // Connect to wifi
-  espRunCommand(ESPSerial, AT_CONNECT_TO_WIFI + SSID + "," + PWD, 1000);
+#define dhtpin D2
+#define dhttype DHT11
+
+
+DHT dht(dhtpin, dhttype);
+
+
+
+String sendGetRequest(String url){
+  // Parameters are in the URL string
+  HTTPClient http;
+  WiFiClientSecure client;
+  
+  client.connect("iot.joalex.dev", 443);
+  http.begin("iot.joalex.dev", 443, url, "70 d3 7f 7e 83 4d 7d e2 f9 9a 3e 8f 9a 97 8a a2 5c cf f7 ee");
+
+  int httpCode = http.GET();
+
+  Serial.println("http code: " + String(httpCode));
+  
+  if (httpCode > 0){
+    String payload = http.getString();
+    return payload;
+  }
+  
+  http.end();
   delay(1000);
+  return "";
+}
+
+boolean wifiIsOn(){
+  // Tests connection
+  return WiFi.status() == WL_CONNECTED;
+}
+
+void connectToWifi(){
+  // Try to connect to wifi every 10s
+  while(!wifiIsOn()){
+    WiFi.begin("WIFI_NAME_SSID","WIFI_PASSWORD"); 
+    delay(10000);
+  }
+}
+
+String getTemperature(){
+  double Vout, Rth, temperature, adc_value; 
+  const double VCC = 3.3;
+  const double R2 = 10000; 
+  const double adc_resolution = 1023;
+  const double A = 0.001129148;
+  const double B = 0.000234125;
+  const double C = 0.0000000876741; 
+  adc_value = analogRead(A0);
+  Vout = (adc_value * VCC) / adc_resolution;
+  Rth = (VCC * R2 / Vout) - R2;
+  temperature = (1 / (A + (B * log(Rth)) + (C * pow((log(Rth)),3))));
+  temperature = temperature - 273.15;
+  return String(temperature);
+}
+
+void setup(){
+  Serial.begin(9600);
+  Serial.print("Starting...");
+  dht.begin();
+  connectToWifi();
 }
 
 
 void loop(){
-  // Prints out any response from ESP module
-  if (ESPSerial.available()){
-    while(ESPSerial.available()){
-      char c = ESPSerial.read();
-      Serial.print(c);
-    }
+  // Reconnect if wifi drops
+  if(!wifiIsOn()){
+    connectToWifi();
   }
-  
-  // Manual input from Serial Monitor
-  if (Serial.available()){
-    ESPSerial.write(Serial.read());
-  }   
-  
- if (millis() % oneMinute == 0){
-    // Test connection and reset if wifi is off
-    boolean wifiIsOn = testWifiConnection(ESPSerial);
 
-    if (wifiIsOn){
-      // Get temperature
-      String temperature = getTemperature(thermistorPin, thermistorResistor);
-      Serial.println("\nTemperature: " + temperature);
-    }else{
-      resetWifi(ESPSerial);
-    }
-  }
+  float t = dht.readTemperature();
+  delay(5000);
+  float h = dht.readHumidity();
+  delay(5000);
+
+
+  String resp = sendGetRequest("http://yourwebsite.com/t=" + String(t) + "&h=" + String(h));
+  
+  Serial.println("\tResponse: " + resp);
 }
-
-
-
-
-
-
